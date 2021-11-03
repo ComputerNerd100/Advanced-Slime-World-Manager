@@ -1,11 +1,14 @@
 package com.grinderwolf.swm.plugin.config;
 
 import com.grinderwolf.swm.api.world.properties.SlimePropertyMap;
+import com.grinderwolf.swm.plugin.util.ReflectionUtil;
 import lombok.Data;
 import ninja.leaping.configurate.objectmapping.Setting;
 import ninja.leaping.configurate.objectmapping.serialize.ConfigSerializable;
 import org.bukkit.Difficulty;
 import org.bukkit.World;
+
+import java.util.Map;
 
 import static com.grinderwolf.swm.api.world.properties.SlimeProperties.*;
 
@@ -98,5 +101,11 @@ public class WorldData {
         propertyMap.setValue(DEFAULT_BIOME, defaultBiome);
 
         return propertyMap;
+    }
+
+    public static WorldData of(Map<String, String> optionsMap) {
+        WorldData worldData = new WorldData();
+        optionsMap.forEach((key, value) -> ReflectionUtil.populateField(worldData, ReflectionUtil.getField(worldData, key), value));
+        return worldData;
     }
 }
