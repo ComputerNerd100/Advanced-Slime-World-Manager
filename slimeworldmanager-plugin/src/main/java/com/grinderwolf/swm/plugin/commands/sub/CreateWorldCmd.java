@@ -21,15 +21,27 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Getter
 public class CreateWorldCmd implements Subcommand {
 
-    private final String usage = "create <world> <data-source>";
+    private final String usage = "create <world> <data-source> [OPTS]";
     private final String description = "Create an empty world.";
     private final String permission = "swm.createworld";
+
+    private static final Pattern OPT_PATTERN = Pattern.compile("-\\w+:\\w+");
+
+    private static final List<String> OPT_KEYS = Arrays.stream(WorldData.class.getDeclaredFields()).map(Field::getName)
+            .filter(Predicate.not("dataSource"::equals))
+            .collect(Collectors.toUnmodifiableList());
 
     @Override
     public boolean onCommand(CommandSender sender, String[] args) {
@@ -67,6 +79,32 @@ public class CreateWorldCmd implements Subcommand {
                 return true;
             }
 
+            WorldData worldData;
+
+            // Parse any options provided to the create command
+            if (args.length > 2) {
+                if (!Arrays.stream(args).skip(2).allMatch(o -> OPT_PATTERN.matcher(o).find())) {
+                    sender.sendMessage(Logging.COMMAND_PREFIX + ChatColor.RED + "Invalid format for World Option!");
+                    return true;
+                }
+                Map<String, String> optionsMap = Arrays.stream(args).skip(2).map(o -> o.substring(1))
+                        .map(o -> o.split(":"))
+                        .collect(Collectors.toMap(o -> o[0], o -> o[1]));
+
+                if (!(OPT_KEYS.containsAll(optionsMap.keySet()))) {
+                    sender.sendMessage(Logging.COMMAND_PREFIX + ChatColor.RED + "Invalid key for World Configuration!");
+                    return true;
+                }
+
+                optionsMap.putIfAbsent("spawn", "0, 64, 0"); // Make sure the world spawn is 0, 64, 0 unless an alternative is specified!
+                worldData = WorldData.of(optionsMap);
+
+                sender.sendMessage(optionsMap.entrySet().stream().map(e -> e.getKey() + ":" + e.getValue()).collect(Collectors.joining(", ", "{", "}")));
+            } else {
+                worldData = new WorldData();
+                worldData.setSpawn("0, 64, 0");
+            }
+
             CommandManager.getInstance().getWorldsInUse().add(worldName);
             sender.sendMessage(Logging.COMMAND_PREFIX + ChatColor.GRAY + "Creating empty world " + ChatColor.YELLOW + worldName + ChatColor.GRAY + "...");
 
@@ -76,8 +114,6 @@ public class CreateWorldCmd implements Subcommand {
                 try {
                     long start = System.currentTimeMillis();
 
-                    WorldData worldData = new WorldData();
-                    worldData.setSpawn("0, 64, 0");
                     worldData.setDataSource(dataSource);
 
                     SlimePropertyMap propertyMap = worldData.toPropertyMap();
