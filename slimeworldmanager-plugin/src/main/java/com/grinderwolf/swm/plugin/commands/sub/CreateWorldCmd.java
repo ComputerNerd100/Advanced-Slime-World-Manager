@@ -22,10 +22,7 @@ import org.bukkit.command.ConsoleCommandSender;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -161,7 +158,15 @@ public class CreateWorldCmd implements Subcommand {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, String[] args) {
+        if (args.length > 3) {
+            Set<String> matches = new HashSet<>();
+            String search = args[args.length - 1];
+            if ("".equals(search)) { return OPT_KEYS.stream().map(s -> s = "-" + s).collect(Collectors.toList()); }
+            OPT_KEYS.stream().filter(s -> s.toLowerCase().startsWith(search.toLowerCase().substring(1)))
+                    .map(s -> s = "-" + s)
+                    .forEach(matches::add);
+            return new ArrayList<>(matches);
+        }
         return Collections.emptyList();
     }
 }
-
